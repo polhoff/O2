@@ -1,0 +1,375 @@
+
+FitSineCurveWrapper <- function(c_indata, c_library, l_testset = FALSE)
+	{
+	addedMvAvg <- MovingAverageAddon (c_indata, c_library, l_testset)
+	DeficitsAtMinima <- FitSineCurveBatch (addedMvAvg)
+	
+	return (DeficitsAtMinima)
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+FitSineCurve <- function (x_input, y_output, n_period = NA, l_plot = FALSE)
+	{
+	if(is.na(n_period))
+		{
+		#actual period length in seconds
+		n_period <- tail(x_input,1) - head(x_input,1)
+		#make half sine so sine period is double length of actual period
+		sine_period <- 2 * n_period
+		}
+	
+	xc<-cos(2*pi* x_input/sine_period)
+	xs<-sin(2*pi* x_input/sine_period)
+	fit.lm <- lm(y_output ~ xc+xs)
+			
+	# access the fitted series (for plotting)
+	fit <- fitted(fit.lm)  
+
+	# find predictions for original time series
+	pred_var <- predict(fit.lm)
+	ndx <- as.numeric(names(pred_var))
+	#pred_var <- predict(fit.lm, x_input)    
+
+	Rmse <- sum ((pred_var - y_output[ndx]) ^ 2) / length(pred_var)
+	
+	
+	MinValue <- min(pred_var)
+	MinIndex <- as.numeric(names(which.min(pred_var)))
+
+
+	pred_var_input <- as.numeric(names(pred_var))
+	if (l_plot)
+		{
+		plot(pred_var_input, pred_var)
+		#plot(1:length(x_input), pred_var)
+		points(1:length(x_input), y_output, col = 'red')
+		}
+	
+	return( list ('Rmse' = Rmse, 'MinIndex' = MinIndex, 'MinValue' = MinValue, 'predicted' = pred_var))
+	}
+
+#FitSineCurve (n_time, DO_deficit_mv)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+FitSineCurveBatch <- function (indata)
+	{
+	d_dates <- unique (indata$date1)
+	#d_dates <- rev(rev(d_dates)[-1])
+	SunriseSunset_df <- unique(indata[c ('date1', 'Sunrise','Sunset')])
+	#SunriseSunset_df$SolarNoon <- mean (SunriseSunset_df$Sunset, SunriseSunset_df$Sunrise)
+	SunriseSunset_df$photoperiod <- SunriseSunset_df$Sunset - SunriseSunset_df$Sunrise
+	SunriseSunset_df$SolarNoon <- (SunriseSunset_df$Sunset - SunriseSunset_df$Sunrise) / 2 + SunriseSunset_df$Sunrise
+	
+	SunriseSunset_df$phi = as.numeric(NA)
+	SunriseSunset_df$TimeMinDeficit  = as.POSIXct(NA)
+	SunriseSunset_df$TimeMinDeficitRawData  = as.POSIXct(NA)
+	SunriseSunset_df$TimeMinDeficitMvAvg = as.POSIXct(NA)
+	
+	for (i in 1:length(d_dates))
+		{
+		data_sub <- indata[indata$date1 == d_dates[i],]
+		data_sub <- data_sub[data_sub$daynight == 'day',]
+		
+		
+		n_time <- as.numeric(data_sub$date)
+		DO_deficit_mv <- data_sub$DO_deficit_mv
+		
+		fitted_sine <- FitSineCurve (n_time, DO_deficit_mv)
+		SunriseSunset_df$TimeMinDeficit[i] = data_sub$date[fitted_sine$MinIndex]
+		SunriseSunset_df$TimeMinDeficitMvAvg[i] = data_sub$date[which.min(data_sub$DO_deficit_mv)]
+		
+		DO_deficit <- data_sub$DO_deficit
+		fitted_sine <- FitSineCurve (n_time, DO_deficit)
+		SunriseSunset_df$TimeMinDeficitRawData[i] = data_sub$date[fitted_sine$MinIndex]
+		}
+	
+	return(SunriseSunset_df)
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+MovingAverageAddon <- function (c_dataset, c_library, c_name, n_quality = 2, n_period = 120, l_testset = FALSE)
+	{
+	#indata <- Ebble_CE1_2013_04_25
+	#c_library <- mdot
+	#library (mdot); data (Minidot_02); indata <- Minidot_02; n_quality = 14; c_indata <- 'Minidot_02'
+	
+
+	#dirscr <- paste ( dirtop, '/DO/rovscript/', sep = '')
+	
+	#library(mdot)
+	library (parker)
+	data (parker)
+
+
+	library (plyr)
+	library (TTR)
+	library (zoo)
+
+	
+	do.call ( library, list (c_library))
+	
+	DataSets <- parker::ListData (c_library)
+	rownumber <- which (DataSets[,1] == c_dataset)
+	
+	#return (rownumber)
+	indata <- parker::LoadData (c_library, rownumber)
+
+	
+	if ( !is.null(indata$qualityFilter))
+		{
+		indata <- indata[indata$qualityFilter > n_quality,]
+		}
+	
+	if (l_testset)	indata <- head(indata,10000)
+	
+	#indata$DO_deficit_mv <- runMean(indata$DO_deficit, n = n_period, cumulative = FALSE, na.rm = TRUE)
+	indata$DO_deficit_mv <- runMean(indata$DO_deficit, n = n_period, cumulative = FALSE)
+	#plot(indata$DO_deficit_mv)
+
+	indata$DO_deficit_mv <- filter (indata$DO_deficit, rep(1/n_period, n_period), sides = 2)
+
+	lag_def <- with (indata, embed (DO_deficit_mv, 2))
+	indata$DO_deficit_diff <- c (NA, lag_def[,2] - lag_def[,1])
+	lag_def <- with (indata, embed (DO_deficit_diff, 2))
+	indata$DO_deficit_diff_diff <- c (NA, lag_def[,2] - lag_def[,1])
+	#plot(indata$DO_deficit_mv)
+	
+	return(indata)
+	}
+
+
+DeficitsAtMinima <- FitSineCurveBatch (addedMvAvg)

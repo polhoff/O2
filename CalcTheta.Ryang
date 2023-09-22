@@ -1,0 +1,72 @@
+
+
+CalcTheta <- function(indata)
+	{
+	attach(indata)
+	
+	lnER <- log(ER)
+	Tmin20 <- median.Temp - 20
+	
+	Night <- factor(Night)
+	x_out <- glm(lnER20 ~ lnER + Tmin20 + Night)
+	
+	detach(indata)
+	
+	return(lnER20)
+	}
+
+	
+x <- CalcTheta(outdata_all)
+
+
+
+
+
+CalcTheta <- function(indata)
+	{
+		
+	lnER <- log(indata$ER)
+	Tmin20 <- indata$median.Temp - 20
+	
+	Night <- factor(indata$Night)
+	#x_out <- glm(lnER20 ~ lnER + Tmin20 + Night)
+	x_out <- glm(lnER ~ Tmin20 + Night)
+	
+	
+	return(x_out)
+	}
+
+	
+x <- CalcTheta(outdata_all)
+
+
+
+
+
+
+
+
+
+CalcTheta <- function(indata)
+	{
+		
+	lnER <- log(indata$ER)
+	Tmin20 <- indata$median.Temp - 20
+	
+	
+	#slope is 
+	fit <- try ( lm ( lnER ~ Tmin20 ))
+
+
+	
+	Night <- factor(indata$Night)
+	#x_out <- glm(lnER20 ~ lnER + Tmin20 + Night)
+	x_out <- glm(lnER ~ Tmin20 + Night)
+	
+	
+	return(x_out)
+	}
+
+	
+x <- CalcTheta(outdata_all)
+

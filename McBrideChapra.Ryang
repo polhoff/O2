@@ -1,0 +1,99 @@
+
+#a1 <- 12; b1 <- 3
+
+#ApproxDeltaMethod (a1,b1)
+#n_phi = seq (0.1,5,by = 0.1)
+
+#x1 <- log (ApproxDeltaMethod (a1,n_phi),10)
+plot(n_phi, x1)
+
+
+x2 <- DeltaMethod (2, 14, 0.5)
+x2 <- DeltaMethod (2, 12, 0.7)
+x2 <- DeltaMethod (2, 12, 0.4972)
+x2 <- DeltaMethod (1, 12, 0.4972)
+x_test <- seq(0,5, by = 0.1)
+x2 <- DeltaMethod (1, 12, x_test); plot((0-x2)^2)
+
+
+MakeDeltaMethodDataSet <- function ()
+	{
+	n_tol <- 0.0001
+	l_test  =  TRUE
+	x1 <-1
+
+	start_time <- Sys.time()
+
+	phi_df_all <- data.frame (photoperiod = as.numeric(), f_values = as.numeric(), k_values  = as.numeric())
+
+
+	n_periods <- seq (7.5, 17, by = 5/60)
+	#n_periods <- c (7.5, 7.6)
+
+	for ( n_ctr in 1:length(n_periods))
+		{
+		period = n_periods[n_ctr]
+
+		k_values <- seq (0.001, 3, by = 0.001)
+		k_values <- seq (-5, 4, by = 0.2)
+		k_values <- exp(k_values)
+
+		#log (k_values) <- seq (0.1, 3, by = 0.1)
+		f_values <- k_values
+		f_values[] <- NA
+
+		n_factor <- 1
+
+		for ( i in 1:length(k_values))
+			{
+			k_test <- k_values[i]
+			while (l_test)
+				{
+				#x2 <- x1 + x1/10
+				#x3 <- x1 - x1/10
+
+				x2 <- x1 + n_factor
+				x3 <- x1 - n_factor
+
+				#x2 <- x1 + 0.00001
+				#x3 <- x1 - 0.00001
+				
+				y2 <- DeltaMethod (k_test, period, x2)
+				y3 <- DeltaMethod (k_test, period, x3)
+
+				z2 <- (0-y2)^2
+				z3 <- (0-y3)^2
+				
+				x1 <- x2
+				if (z3 < z2) x1 <- x3
+				
+				n_factor <- n_factor * 0.99
+				
+				l_test <- (z3 > n_tol)
+				print(x1)
+				}
+			
+			print (x1)
+			f_values[i] <- x1
+			l_test  =  TRUE
+			n_factor <- 1
+			x1 <-1
+			}
+
+		print (x1)
+		plot(f_values, log(k_values))
+		phi_df <- data.frame (f_values, k_values)
+		phi_df$photoperiod <- period
+		phi_df_all <- append (phi_df_all, phi_df)
+		assign ( paste ('phi_df', period, sep = ''), phi_df)
+		}
+
+	DeltaMethodData <- phi_df_all
+
+	setwd(dirdmp)
+	save( DeltaMethodData, file = 'DeltaMethodData.rda')
+	}
+	
+MakeDeltaMethodDataSet ()
+
+print (-(start_time - Sys.time()))

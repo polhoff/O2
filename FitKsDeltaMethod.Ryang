@@ -1,0 +1,153 @@
+
+FitKsDeltaMethod <- function ( c_dataset, c_library, c_name, n_limit = 0.007, n_quality = 2, metric_type = 1 )
+	{
+	#indata <- Ebble_CE1_2013_04_25
+	#c_library <- mdot
+	#library (mdot); data (Minidot_02); indata <- Minidot_02; n_quality = 14; c_indata <- 'Minidot_02'
+	
+
+	#dirscr <- paste ( dirtop, '/DO/rovscript/', sep = '')
+	
+	#library(mdot)
+	library (parker)
+	data (parker)
+	
+	do.call ( library, list (c_library))
+	
+	DataSets <- parker::ListData (c_library)
+	rownumber <- which (DataSets[,1] == c_dataset)
+	
+	#return (rownumber)
+	indata <- parker::LoadData (c_library, rownumber)
+
+	
+	if ( !is.null(indata$qualityFilter))
+		{
+		indata <- indata[indata$qualityFilter > n_quality,]
+		}
+
+	print ( str (indata))
+	print ( head (indata,2))
+	
+	#plot (indata$date, indata$DO) 
+
+
+	#max_y <- max ( indata$Cnow, indata$DO, na.rm = T )
+	#min_y <- min ( indata$Cnow, indata$DO, na.rm = T )
+
+
+	x_date = unique ( as.Date (indata$date1))
+
+	
+
+	x_nights = unique ( indata$daynight1 )
+	x_nights = x_nights[grep ('night', x_nights)]
+	
+
+	m_coeffs = matrix (nrow = length (x_nights), ncol = 4 )
+
+		for ( i in 1:length (x_nights) )
+		#for ( i in 1:10 )
+			{
+			
+			#i = 1
+			x_ndx = x_nights[i]
+			
+			data_sub_ndx = which ( indata$daynight1 == x_ndx )
+			
+			data_sub = indata[data_sub_ndx, ]
+			
+			x_ndx1 = which ( !is.na (data_sub$DO_deficit))
+			
+			data_sub = data_sub[x_ndx1, ]
+			
+			
+			x_ndx2 <- x_ndx1
+			l_test <- TRUE
+			while (l_test)
+				{
+				data_sub <- data_sub[x_ndx2,]
+				#with ( data_sub, plot ( DO_deficit, DO_change ))
+				n_cor <- cor(data_sub$DO_diff,data_sub$DO_deficit)
+				
+				summary ( data_sub$DO_diff )
+				summary ( data_sub$DO_deficit )
+				fit <- try ( lm ( data_sub$DO_diff ~ data_sub$DO_deficit ))
+				
+				n_fitted <- fitted.values (fit)
+				#x_fit <- predict (fit, data_sub$DO_deficit)
+				n_res <- residuals(fit)
+				n_res_proportion <- (as.numeric (n_res) - as.numeric(n_fitted)) / as.numeric(n_fitted)
+				print (n_res_proportion)
+				print (summary (n_res_proportion))
+				
+				#Wait()
+				plot (data_sub$DO_deficit, data_sub$DO_diff)
+				points (data_sub$DO_deficit, n_fitted, col = 'red')
+				
+				#print (n_res)
+				#print (n_res_proportion)
+				
+				if (metric_type == 1) {x_ndx2 <- (abs (n_res) < n_limit)}
+				if (metric_type == 2) {x_ndx2 <- (abs (n_res_proportion) < n_limit)}
+				print (FALSE %in% x_ndx2)
+				
+				Wait()
+				plot (data_sub$DO_deficit, data_sub$DO_diff)
+				if ( !(FALSE %in% x_ndx2)) l_test <- FALSE
+				}
+			
+			plot (data_sub$DO_deficit, data_sub$DO_diff, col = 'green')
+			points (data_sub$DO_deficit, n_fitted, col = 'red')
+			Wait(0.2)
+			
+			n_inter <-  as.numeric (fit[[1]][1])
+			n_slope <-  as.numeric (fit[[1]][2])
+
+
+			m_coeffs[i,1] <- n_inter
+			m_coeffs[i,2] <- n_slope
+			m_coeffs[i,3] <- n_cor
+			m_coeffs[i,4] <- dim(data_sub)[1]
+			}
+
+
+	#Ebble_CE1_2013_04_25
+	x_temp <- data.frame ( x_date[1:length (x_nights)], x_nights, m_coeffs )
+	names (x_temp) <- c ('date1', 'daynight1','ER','Ks', 'correlation', 'N')
+	assign ( paste (c_dataset, '_ER_Ks', n_limit, sep = ''), x_temp)
+
+
+	x_ls <- ls() [grep ( ls(), pattern = '_ER_Ks' )]
+	print ( x_ls )
+
+	setwd (dirdmp)
+	save (list =  x_ls, file =  paste ( c_dataset, '_ER_Ks.rda', sep = ''))
+
+	#return (n_res_proportion)
+	return (x_temp)
+	}
+
+
+
+#FitRegressionParametersIterate ( c_dataset = 'Nadder_GN1_2014-08-20_md', c_library = 'mdot.data')
+#FitRegressionParametersIterate ( c_dataset = 'Nadder_GN1_2014-08-20_md', c_library = 'mdot.data', n_limit = 0.007)
+#FitRegressionParametersIterate ( c_dataset = 'Nadder_GN1_2014-08-20_md', c_library = 'mdot.data', n_limit = 20, metric_type = 2)
+#regressed <- FitRegressionParametersIterate ( c_dataset = 'Nadder_GN1_2014-08-20_md', c_library = 'mdot.data', n_limit = 0.007, metric_type = 1)
+
+
+
+#regressed01 <- FitRegressionParametersIterate ( c_dataset = 'Ebble_CE1_2014-08-21_md', c_library = 'mdot.data', n_limit = 0.007, metric_type = 1)
+#regressed02 <- FitRegressionParametersIterate ( c_dataset = 'Ebble_CE1_2014-08-21_md', c_library = 'mdot.data', n_limit = 5, metric_type = 1)
+#regressed03 <- FitRegressionParametersIterate ( c_dataset = 'Ebble_CE1_2014-08-21_md', c_library = 'mdot.data', n_limit = 50, metric_type = 2)
+
+
+#regressed01 <- regressed01[1:41,]
+#regressed02 <- regressed02[1:41,]
+#regressed03 <- regressed03[1:41,]
+
+#with (regressed01, plot ( date1, ER, type = 'b', ylim = c (-0.02, -0.00)))
+#with (regressed02, points ( date1, ER, type = 'b', col = 'red'))
+#with (regressed03, points ( date1, ER, type = 'b', col = 'blue'))
+
+

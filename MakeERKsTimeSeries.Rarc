@@ -1,0 +1,63 @@
+
+MakeERKsTimeSeries <- function ( c_indata1, c_inparams, c_set = 'for', c_library = 'rovelli' )
+	{
+
+	stopifnot ( c_set %in%  c('for', 'mid', 'lag'))
+
+	#indata <- Ebble_CE1_2013_08_08
+	#inparams <- Ebble_CE1_2013_08_08_ER_Ks
+
+	do.call ( library, list (c_library))
+
+	do.call ( data, list (c_indata1))
+	do.call ( data, list (c_inparams))
+
+	indata <- get ( c_indata1 )
+	inparams <- get ( paste (c_inparams, '_',  c_set, sep = ''))
+
+	data_new <- merge (indata, inparams, by = 'date1')
+	data_new$date1 <- try (data_new$date1.x)
+
+	indata$ER <- NA
+	indata$Ks0 <- NA
+
+	for ( i in 1:dim(inparams)[1] )
+		{
+		i_sub <- inparams[i,]
+		indata$ER[indata$daynight1 == i_sub$daynight1] <- i_sub$ER
+		indata$Ks0[indata$daynight1 == i_sub$daynight1] <- i_sub$Ks0
+		}
+
+	indata_sub <- indata[!is.na (indata$ER),]
+	banana <- approxfun ( indata_sub$date, indata_sub$ER )
+	banana_out <- banana (  indata$date )
+	indata$ER <- banana_out
+
+
+	indata_sub <- indata[!is.na (indata$Ks0),]
+	banana <- approxfun ( indata_sub$date, indata_sub$Ks0 )
+	banana_out <- banana (  indata$date )
+	indata$Ks0 <- banana_out
+
+	first_notNA <- head (which (!is.na (banana_out)),1)
+	last_notNA <- tail (which (!is.na (banana_out)),1)
+
+	early_NA_ndx <- which (indata$date < indata$date[first_notNA])
+	late_NA_ndx <- which (indata$date > indata$date[last_notNA])
+
+	indata$ER[early_NA_ndx]  <- indata$ER[first_notNA]
+	indata$Ks0[early_NA_ndx]  <- indata$Ks0[first_notNA]
+
+	indata$ER[late_NA_ndx]  <- indata$ER[last_notNA]
+	indata$Ks0[late_NA_ndx]  <- indata$Ks0[last_notNA]
+
+	plot ( indata$date)
+	plot ( indata$date, indata$DO )
+
+	plot ( indata$date, indata$ER )
+	plot ( indata$date, indata$Ks0 )
+
+	}
+
+
+#x1 <- MakeERKsTimeSeries ('Ebble_CE1_2013_08_08', 'Ebble_CE1_2013_08_08_ER_Ks_for')
